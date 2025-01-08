@@ -436,8 +436,9 @@ def do_retarget(src_data_path, src_data_list,
             character.FBDelete()
 
             # delete all models except for source models
+            src_prefix_general = src_prefix.split(' ')[0]
             for model in scene.RootModel.Children:
-                if src_prefix not in model.LongName:
+                if src_prefix_general not in model.LongName:
                     select_branch(model)
 
             selected_models = FBModelList()
