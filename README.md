@@ -28,6 +28,9 @@
 ## TODO
 - [ ] Add codes handling errors such as path typo
 - [ ] Add scroll box to both data lists
+- [ ] Add joint mapping ui
+- [ ] Change mapping function for characterizing
+- [ ] Fix an issue need to restart after running retargeting once
 
 ## References
 * https://github.com/sunny-Codes/SAME
