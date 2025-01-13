@@ -1,5 +1,5 @@
 import os
-from joint_dict import MB_JOINTS, MB_SMPL_JOINTS
+from joint_dict import MB_JOINTS, MB_ADD_JOINTS
 from export_bvh import export_bvh
 
 from pyfbsdk import *
@@ -24,6 +24,14 @@ def recursive_select(node, types=None):
         node.Selected = True
     for child in node.Children:
         recursive_select(child)
+
+def return_all_children(node, types=None):
+    children = []
+    for child in node.Children:
+        if (not types or isinstance(child, types)):
+            children.append(child)
+            children += return_all_children(child, types)
+    return children
 
 def check_model_is_SMPL(hip):
     ck_hip_name = False
@@ -87,15 +95,32 @@ def CharacterizeBiped(namespace, hip):
     FBApplication().CurrentCharacter = myBiped
 
     # choose joint dict
-    joint_candidates = {"LeftToeBase": ["LeftToe"], "RightToeBase": ["RightToe"]}
-    if check_model_is_SMPL(hip):
-        joint_candidates = MB_SMPL_JOINTS
+    joint_candidates = MB_ADD_JOINTS
 
+    # check collar in model
+    check_collar = False
+    collar_name = f"{namespace}:LeftCollar"
+    for joint in return_all_children(hip):
+        if collar_name in joint.LongName:
+            check_collar = True
+            break
+
+    spine_child = ""
+    spine_check = ""
+    for child in hip.Children:
+        if "spine" in child.LongName.lower():
+            spine_child = child.LongName
+            spine_check = "spine"
+            break
+        if "chest" in child.LongName.lower():
+            spine_child = child.LongName
+            spine_check = "chest"
+            break
     # assign Biped to Character Mapping.
     for mobuJoint in MB_JOINTS:
         modelLongName = f"{namespace}:{mobuJoint}" if namespace else mobuJoint
         myJoint = FBFindModelByLabelName(modelLongName)
-        if (not myJoint) and (mobuJoint in joint_candidates):
+        if (not myJoint or check_collar) and (mobuJoint in joint_candidates):
             for bvh_joint_candidate in joint_candidates[mobuJoint]:
                 modelLongName = (
                     f"{namespace}:{bvh_joint_candidate}"
@@ -103,7 +128,14 @@ def CharacterizeBiped(namespace, hip):
                     else bvh_joint_candidate
                 )
                 myJoint = FBFindModelByLabelName(modelLongName)
+                
                 if myJoint:
+                    if spine_check in myJoint.LongName.lower():
+                        if spine_child != myJoint.LongName:
+                            myJoint = None
+                            continue
+                        spine_child = myJoint.Children[0].LongName
+
                     break
         # print(modelLongName, myJoint)
         if myJoint:
@@ -112,6 +144,15 @@ def CharacterizeBiped(namespace, hip):
 
     switchOn = myBiped.SetCharacterizeOn(True)
     # print "Character mapping created for " + (myBiped.LongName)
+
+    # if not switchOn:
+    #     FBMessageBox(
+    #         "Something went wrong",
+    #         "Characterize returned false, cannot continue",
+    #         "OK",
+    #         None,
+    #         None,
+    #     )
 
     return myBiped
 
@@ -188,7 +229,7 @@ def do_retarget(src_data_path, src_data_list,
         print(f"Export path does not exist: {export_path}")
         return
     # append results to the export path
-    export_path = os.path.join(export_path, "results")
+    export_path = os.path.join(export_path, "retarget")
 
     # source motion files
     src_motion_files = []
@@ -260,17 +301,22 @@ def do_retarget(src_data_path, src_data_list,
             cnt_modelskel = len(scene.ModelSkeletons)
             mo_file_name = mo_file.split(os.sep)[-1].split(".")[0]
 
-            # new_take = FBTake(mo_file_name)
-            # system.Scene.Takes.append(new_take)
-            # SwitchTake(mo_file_name)
-            # new_take.ClearAllProperties(False)
-            success = app.FileImport(mo_file, merge_skel)
-            if not success:
-                print(f"Failed to load {mo_file}")
-                exit()
-            new_take = system.Scene.Takes[-1]
-            new_take.LongName = mo_file_name
-            SwitchTake(mo_file_name)
+            if mo_file.endswith(".bvh"):
+                new_take = FBTake(mo_file_name)
+                system.Scene.Takes.append(new_take)
+                SwitchTake(mo_file_name)
+                success = app.FileImport(mo_file, merge_skel)
+                if not success:
+                    print(f"Failed to load {mo_file}")
+                    exit()
+            elif mo_file.endswith(".fbx"):
+                success = app.FileImport(mo_file, merge_skel)
+                if not success:
+                    print(f"Failed to load {mo_file}")
+                    exit()
+                new_take = system.Scene.Takes[-1]
+                new_take.LongName = mo_file_name
+                SwitchTake(mo_file_name)
 
             valid_m_num += 1
 
@@ -400,7 +446,7 @@ def do_retarget(src_data_path, src_data_list,
                     player.Goto(FBTime(0, 0, 0, i))
                     scene.Evaluate()
                     player.Key()
-                    scene.Evaluate()              
+                    scene.Evaluate()        
 
                 player.Goto(FBTime(0, 0, 0, 0))
                 anim_char = val_char_list[0] if merge_skel else val_char_list[vm_i]
@@ -449,4 +495,3 @@ def do_retarget(src_data_path, src_data_list,
             deselect_all()
             for comp in scene.Components:
                 comp.Selected = False
-                

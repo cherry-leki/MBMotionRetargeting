@@ -21,7 +21,7 @@ def OnUnbind(control, event):
     FBDestroyTool(t)
 
 
-def OpenFolderExplorer(search_e, lyt_data_list=None, list_type=None):
+def OpenFolderExplorer(search_e, lyt_data_list=None, list_type=None, data_list_l=None):
     file_path = QtWidgets.QFileDialog.getExistingDirectory(None, "Select Directory", search_e.Text)
     if file_path == "":
         file_path = search_e.Text
@@ -30,10 +30,10 @@ def OpenFolderExplorer(search_e, lyt_data_list=None, list_type=None):
     if lyt_data_list is not None and list_type is not None:
         global src_data_list, tgt_model_list
         if list_type == "source":
-            src_data_list = UpdateDataList(file_path, lyt_data_list)
+            src_data_list = UpdateDataList(file_path, lyt_data_list, data_list_l)
             UpdateMaxBatchNum(len(src_data_list))
         elif list_type == "target":
-            tgt_model_list = UpdateDataList(file_path, lyt_data_list)
+            tgt_model_list = UpdateDataList(file_path, lyt_data_list, data_list_l)
 
 
 def GetSelectedDataNames(data_list):
@@ -67,18 +67,18 @@ def UpdateMaxBatchNum(num):
     max_batch_num = num
 
 
-def UpdateSourceTargetList(src_data_path, lyt_src_data_list,
-                           tgt_data_path, lyt_tgt_model_list):
+def UpdateSourceTargetList(src_data_path, lyt_src_data_list, src_data_list_l,
+                           tgt_data_path, lyt_tgt_model_list, tgt_model_list_l):
     
     global src_data_list, tgt_model_list
     # update data list
-    src_data_list  = UpdateDataList(src_data_path, lyt_src_data_list)
-    tgt_model_list = UpdateDataList(tgt_data_path, lyt_tgt_model_list)
+    src_data_list  = UpdateDataList(src_data_path, lyt_src_data_list, src_data_list_l)
+    tgt_model_list = UpdateDataList(tgt_data_path, lyt_tgt_model_list, tgt_model_list_l)
 
     UpdateMaxBatchNum(len(src_data_list))
 
 
-def UpdateDataList(data_path, lyt_data_list):
+def UpdateDataList(data_path, lyt_data_list, data_list_l):
     load_data_names = LoadData(data_path)
 
     tmp_data_list = []
@@ -92,6 +92,8 @@ def UpdateDataList(data_path, lyt_data_list):
         tmp_data.State = True
         lyt_data_list.Add(tmp_data, 20)
         tmp_data_list.append(tmp_data)
+
+    data_list_l.Caption = data_list_l.Caption.split("(")[0] + "(" + str(len(load_data_names)) + ")"
     
     return tmp_data_list
 
@@ -124,7 +126,7 @@ def PopulateLayout(main_lyt):
     lyt_src_search.Add(src_search_l, 145)
 
     src_search_e = FBEdit()
-    src_search_e.Text = "D:/Research/CHOIR/01_data/SAMP/original"
+    src_search_e.Text = "C:/"
     lyt_src_search.Add(src_search_e, 310)
 
     src_search_b = FBButton()
@@ -140,7 +142,7 @@ def PopulateLayout(main_lyt):
     lyt_tgt_search.Add(tgt_search_l, 145)
 
     tgt_search_e = FBEdit()
-    tgt_search_e.Text = "D:/Research/CHOIR/01_data/SAMP/retarget/models"
+    tgt_search_e.Text = "C:/"
     # tgt_search_e.Text = "D:/Research/CHOIR/01_data/SAMP/result/models"
     lyt_tgt_search.Add(tgt_search_e, 310)
 
@@ -213,10 +215,10 @@ def PopulateLayout(main_lyt):
     lyt_tgt_model.Add(lyt_tgt_model_list, 100)
 
     # add event to load data button    
-    src_search_b.OnClick.Add(lambda control, event: OpenFolderExplorer(src_search_e, lyt_src_data_list, "source"))
-    tgt_search_b.OnClick.Add(lambda control, event: OpenFolderExplorer(tgt_search_e, lyt_tgt_model_list, "target"))
-    load_data_b.OnClick.Add(lambda control, event: UpdateSourceTargetList(src_search_e.Text, lyt_src_data_list,
-                                                                          tgt_search_e.Text, lyt_tgt_model_list))
+    src_search_b.OnClick.Add(lambda control, event: OpenFolderExplorer(src_search_e, lyt_src_data_list, "source", src_data_list_l))
+    tgt_search_b.OnClick.Add(lambda control, event: OpenFolderExplorer(tgt_search_e, lyt_tgt_model_list, "target", tgt_model_list_l))
+    load_data_b.OnClick.Add(lambda control, event: UpdateSourceTargetList(src_search_e.Text, lyt_src_data_list, src_data_list_l,
+                                                                          tgt_search_e.Text, lyt_tgt_model_list, tgt_model_list_l))
 
 
     ## Retargeting setting
